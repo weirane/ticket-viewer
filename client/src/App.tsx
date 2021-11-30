@@ -16,8 +16,15 @@ type State = {
   userName: { [id: number]: string };
   currentPage: number;
   loaded: boolean;
-  allLoaded: boolean;
-  loadedPage: number;
+  totalCount: number;
+  nextPage: string | null;
+  updateDisabled: boolean;
+};
+
+type TicketRes = {
+  tickets: ITicket[];
+  next_page: string | null;
+  count: number;
 };
 
 const PAGE_SIZE = 25;
@@ -30,8 +37,9 @@ class App extends React.Component<{}, State> {
       userName: {},
       currentPage: 1,
       loaded: false,
-      allLoaded: false,
-      loadedPage: 0,
+      totalCount: 0,
+      nextPage: '/api/v2/tickets.json',
+      updateDisabled: false,
     };
     this.handleTicketClick = this.handleTicketClick.bind(this);
     this.collapseAll = this.collapseAll.bind(this);
@@ -40,21 +48,45 @@ class App extends React.Component<{}, State> {
   }
 
   async getTickets() {
-    type TRes = { tickets: ITicket[] };
-    const res: TRes = await fetch('/tickets').then((r) => r.json());
+    if (this.state.updateDisabled || this.state.nextPage === null) {
+      return;
+    }
+    this.setState({ updateDisabled: true });
+    const res: TicketRes = await fetch(this.state.nextPage).then((r) => r.json());
     const users = Array.from(new Set(res.tickets.map((r) => r.requester_id)));
     const usermap = await Promise.all(
       users.map((u) => fetch(`/users/${u}`).then((r) => r.json().then((res) => [u, res.name])))
     );
-    this.setState({ tickets: res.tickets, userName: Object.fromEntries(usermap), loaded: true });
+    let updateNextPage = {};
+    if (res.next_page) {
+      const npUrl = new URL(res.next_page);
+      updateNextPage = { nextPage: npUrl.pathname + npUrl.search };
+    }
+    this.setState({
+      tickets: this.state.tickets.concat(res.tickets),
+      userName: Object.fromEntries(usermap),
+      loaded: true,
+      totalCount: res.count,
+      updateDisabled: false,
+      ...updateNextPage,
+    });
   }
 
-  nextPage() {
-    const lastPage = Math.ceil(this.state.tickets.length / PAGE_SIZE);
-    this.collapseAll();
-    if (this.state.currentPage >= lastPage) {
-      this.setState({ currentPage: Math.min(lastPage, this.state.currentPage + 1) });
+  async nextPage() {
+    if (
+      this.state.updateDisabled ||
+      // reached the end
+      this.state.currentPage >= Math.ceil(this.state.totalCount / PAGE_SIZE)
+    ) {
+      return;
     }
+    this.collapseAll();
+    const lastAvailPage = () => Math.ceil(this.state.tickets.length / PAGE_SIZE);
+    while (this.state.currentPage >= lastAvailPage() && this.state.nextPage !== null) {
+      // need to load more
+      await this.getTickets();
+    }
+    this.setState({ currentPage: Math.min(lastAvailPage(), this.state.currentPage + 1) });
   }
 
   prevPage() {
@@ -86,14 +118,17 @@ class App extends React.Component<{}, State> {
     return (
       <div className="App">
         <h2>Ticket Viewer</h2>
+        <div className="controls">
+          <span className="page-indicator">Page {this.state.currentPage}</span>
+          <button onClick={this.prevPage}>Prev</button>
+          <button onClick={this.nextPage}>Next</button>
+          <button onClick={this.collapseAll}>Collapse All</button>
+          <span className="updating">{this.state.updateDisabled ? 'Updating...' : ''}</span>
+        </div>
         {this.state.loaded ? (
           <div className="prefix">
-            {this.state.tickets.length} tickets in total, displaying {ticketStart} to {ticketEnd}.
-            <br />
-            Page {this.state.currentPage}
-            <button onClick={this.prevPage}>Prev</button>
-            <button onClick={this.nextPage}>Next</button>
-            <button onClick={this.collapseAll}>Collapse All</button>
+            {this.state.totalCount} tickets in total, displaying tickets {ticketStart} to{' '}
+            {ticketEnd}.
           </div>
         ) : (
           ''

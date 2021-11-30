@@ -9,8 +9,11 @@ const port = 3001;
 
 const AUTH = { auth: { username: config.username + '/token', password: config.token } };
 
-app.get('/tickets', async (_req, res) => {
-  const tick = await axios.get(ZENDESK_URL + '/api/v2/tickets.json', AUTH);
+app.get('/api/v2/tickets.json', async (req, res) => {
+  const tick = await axios.get(ZENDESK_URL + '/api/v2/tickets.json', {
+    params: req.query,
+    ...AUTH,
+  });
   res.send(tick.data);
 });
 
