@@ -1,0 +1,39 @@
+.App {
+  margin: auto;
+  width: 800px;
+}
+
+.requester {
+  font-style: italic;
+}
+
+h3.ticket-title {
+  cursor: pointer;
+  margin-top: 0;
+  background-color: #ddd;
+  border-radius: 8px;
+}
+
+.ticket-status-mark {
+  color: white;
+  border-radius: 8px;
+  margin-right: 5px;
+}
+
+.ticket-status-mark.red {
+  background-color: red;
+}
+
+.ticket-status-mark.gray {
+  background-color: gray;
+}
+
+.ticket-status-mark.blue {
+  background-color: blue;
+}
+
+.ticket-body {
+  transition: max-height 0.3s;
+  max-height: 0;
+  overflow-y: hidden;
+}
