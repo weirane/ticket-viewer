@@ -10,16 +10,28 @@ const port = 3001;
 const AUTH = { auth: { username: config.username + '/token', password: config.token } };
 
 app.get('/api/v2/tickets.json', async (req, res) => {
-  const tick = await axios.get(ZENDESK_URL + '/api/v2/tickets.json', {
-    params: req.query,
-    ...AUTH,
-  });
-  res.send(tick.data);
+  let response;
+  try {
+    response = await axios.get(ZENDESK_URL + '/api/v2/tickets.json', {
+      params: req.query,
+      ...AUTH,
+    });
+  } catch (e) {
+    response = e.response || { status: 500, data: { error: 'unknown error' } };
+  }
+  res.status(response.status);
+  res.send(response.data);
 });
 
 app.get('/users/:userid', async (req, res) => {
-  const user = await axios.get(ZENDESK_URL + `/api/v2/users/${req.params.userid}`, AUTH);
-  res.send(user.data.user);
+  let response;
+  try {
+    response = await axios.get(ZENDESK_URL + `/api/v2/users/${req.params.userid}`, AUTH);
+  } catch (e) {
+    response = e.response || { status: 500, data: { user: {} } };
+  }
+  res.status(response.status);
+  res.send(response.data.user);
 });
 
 app.listen(port, host, () => console.log(`Listening on ${host}:${port}`));

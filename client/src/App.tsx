@@ -19,6 +19,7 @@ type State = {
   totalCount: number;
   nextPage: string | null;
   updateDisabled: boolean;
+  error: string | null;
 };
 
 type TicketRes = {
@@ -28,6 +29,23 @@ type TicketRes = {
 };
 
 const PAGE_SIZE = 25;
+
+function extractError(err: any): string {
+  if (err.hasOwnProperty('error')) {
+    const error = err.error;
+    if (typeof error === 'string') {
+      return error;
+    } else if (error.hasOwnProperty('title')) {
+      return error.title;
+    } else {
+      return 'unknown error';
+    }
+  } else if (err.hasOwnProperty('message')) {
+    return err.message;
+  } else {
+    return 'unknown error';
+  }
+}
 
 class App extends React.Component<{}, State> {
   constructor(props: any) {
@@ -40,6 +58,7 @@ class App extends React.Component<{}, State> {
       totalCount: 0,
       nextPage: '/api/v2/tickets.json',
       updateDisabled: false,
+      error: null,
     };
     this.handleTicketClick = this.handleTicketClick.bind(this);
     this.collapseAll = this.collapseAll.bind(this);
@@ -52,11 +71,32 @@ class App extends React.Component<{}, State> {
       return;
     }
     this.setState({ updateDisabled: true });
-    const res: TicketRes = await fetch(this.state.nextPage).then((r) => r.json());
+    const resp = await fetch(this.state.nextPage);
+    if (resp.status !== 200) {
+      const error = extractError(await resp.json());
+      this.setState({
+        loaded: true,
+        updateDisabled: false,
+        error: 'getting tickets failed: ' + error,
+      });
+      return;
+    }
+    const res: TicketRes = await resp.json();
     const users = Array.from(new Set(res.tickets.map((r) => r.requester_id)));
-    const usermap = await Promise.all(
-      users.map((u) => fetch(`/users/${u}`).then((r) => r.json().then((res) => [u, res.name])))
-    );
+    let usermap;
+    try {
+      usermap = await Promise.all(
+        users.map((u) => fetch(`/users/${u}`).then((r) => r.json().then((res) => [u, res.name])))
+      );
+    } catch (e) {
+      const error = extractError(e);
+      this.setState({
+        loaded: true,
+        error: 'getting user info failed: ' + error,
+        updateDisabled: false,
+      });
+      return;
+    }
     let updateNextPage = {};
     if (res.next_page) {
       const npUrl = new URL(res.next_page);
@@ -115,33 +155,48 @@ class App extends React.Component<{}, State> {
     const toDisplay = this.state.tickets.slice(pageStart, pageEnd);
     const ticketStart = pageStart + 1;
     const ticketEnd = pageStart + toDisplay.length;
+
+    const controls = (
+      <div className="controls">
+        <span className="page-indicator">Page {this.state.currentPage}</span>
+        <button onClick={this.prevPage}>Prev</button>
+        <button onClick={this.nextPage}>Next</button>
+        <button onClick={this.collapseAll}>Collapse All</button>
+        <span className="updating">{this.state.updateDisabled ? 'Updating...' : ''}</span>
+      </div>
+    );
+    const prefix =
+      this.state.loaded && this.state.error === null ? (
+        <div className="prefix">
+          {this.state.totalCount} tickets in total, displaying tickets {ticketStart} to {ticketEnd}.
+        </div>
+      ) : (
+        ''
+      );
+    const tickets =
+      this.state.error === null ? (
+        <div className="tickets">
+          {toDisplay.map((tick) => (
+            <Ticket
+              ticket={tick}
+              userName={this.state.userName[tick.requester_id]}
+              handleClick={this.handleTicketClick}
+              key={hashTicket(tick)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div>
+          Error: {this.state.error}
+          <br /> <button onClick={() => window.location.reload()}>Reload</button>
+        </div>
+      );
     return (
       <div className="App">
         <h2>Ticket Viewer</h2>
-        <div className="controls">
-          <span className="page-indicator">Page {this.state.currentPage}</span>
-          <button onClick={this.prevPage}>Prev</button>
-          <button onClick={this.nextPage}>Next</button>
-          <button onClick={this.collapseAll}>Collapse All</button>
-          <span className="updating">{this.state.updateDisabled ? 'Updating...' : ''}</span>
-        </div>
-        {this.state.loaded ? (
-          <div className="prefix">
-            {this.state.totalCount} tickets in total, displaying tickets {ticketStart} to{' '}
-            {ticketEnd}.
-          </div>
-        ) : (
-          ''
-        )}
-        <br />
-        {toDisplay.map((tick) => (
-          <Ticket
-            ticket={tick}
-            userName={this.state.userName[tick.requester_id]}
-            handleClick={this.handleTicketClick}
-            key={hashTicket(tick)}
-          />
-        ))}
+        {controls}
+        {prefix}
+        {tickets}
       </div>
     );
   }
