@@ -50,6 +50,8 @@ test('app', async () => {
   r.getByText('Next').click();
   expect(r.getByText('Page 2')).toBeInTheDocument();
   expect(r.getByText('subject 26')).toBeInTheDocument();
+  r.getByText('Prev').click();
+  expect(r.getByText('Page 1')).toBeInTheDocument();
 });
 
 test('ticket click', async () => {
@@ -69,7 +71,32 @@ test('ticket click', async () => {
 
 test('get tickets failed', async () => {
   (fetch as any).mockResponseOnce('{}', { status: 500 });
-  const r = render(<App />);
+  let r = render(<App />);
   await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   expect(r.getByText('Error: getting tickets failed: unknown error')).toBeInTheDocument();
+
+  (fetch as any).mockResponseOnce('{"error":"error message"}', { status: 500 });
+  r = render(<App />);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(r.getByText('Error: getting tickets failed: error message')).toBeInTheDocument();
+
+  (fetch as any).mockResponseOnce('{"error":{"title":"error title"}}', { status: 500 });
+  r = render(<App />);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3));
+  expect(r.getByText('Error: getting tickets failed: error title')).toBeInTheDocument();
+});
+
+test('get user failed', async () => {
+  (fetch as any).mockResponseOnce(
+    JSON.stringify({
+      tickets,
+      next_page: 'https://example.com/tickets/?page=2',
+      count: 27,
+    })
+  );
+  (fetch as any).mockResponseOnce('', { status: 500 });
+  const r = render(<App />);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(r.getByText(/^Error: getting user info failed/)).toBeInTheDocument();
+  expect(r.getByText('Reload')).toBeInTheDocument();
 });
