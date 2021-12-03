@@ -164,17 +164,14 @@ class App extends React.Component<{}, State> {
         <button onClick={this.prevPage}>Prev</button>
         <button onClick={this.nextPage}>Next</button>
         <button onClick={this.collapseAll}>Collapse All</button>
-        <span className="updating">{this.state.updateDisabled ? 'Updating...' : ''}</span>
+        {this.state.updateDisabled && <span className="updating">Updating...</span>}
       </div>
     );
-    const prefix =
-      this.state.loaded && this.state.error === null ? (
-        <div className="prefix">
-          {this.state.totalCount} tickets in total, displaying tickets {ticketStart} to {ticketEnd}.
-        </div>
-      ) : (
-        ''
-      );
+    const prefix = (
+      <div className="prefix">
+        {this.state.totalCount} tickets in total, displaying tickets {ticketStart} to {ticketEnd}.
+      </div>
+    );
     const tickets =
       this.state.error === null ? (
         <div className="tickets">
@@ -197,7 +194,7 @@ class App extends React.Component<{}, State> {
       <div className="App">
         <h2>Ticket Viewer</h2>
         {controls}
-        {prefix}
+        {this.state.loaded && this.state.error === null && prefix}
         {tickets}
       </div>
     );
