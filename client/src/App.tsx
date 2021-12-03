@@ -86,7 +86,9 @@ class App extends React.Component<{}, State> {
     let usermap;
     try {
       usermap = await Promise.all(
-        users.map((u) => fetch(`/users/${u}`).then((r) => r.json().then((res) => [u, res.name])))
+        users.map((u) =>
+          fetch(`/api/users/${u}`).then((r) => r.json().then((res) => [u, res.name]))
+        )
       );
     } catch (e) {
       const error = extractError(e);

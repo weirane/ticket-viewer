@@ -23,7 +23,7 @@ app.get('/api/v2/tickets.json', async (req, res) => {
   res.send(response.data);
 });
 
-app.get('/users/:userid', async (req, res) => {
+app.get('/api/users/:userid', async (req, res) => {
   let response;
   try {
     response = await axios.get(ZENDESK_URL + `/api/v2/users/${req.params.userid}`, AUTH);
