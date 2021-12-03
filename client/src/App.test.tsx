@@ -1,10 +1,6 @@
-import { render } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import App, { ITicket } from './App';
 import Ticket from './Ticket';
-
-function sleep(time: number) {
-  return new Promise((resolve) => setTimeout(resolve, time));
-}
 
 beforeEach(() => {
   (fetch as any).resetMocks();
@@ -48,9 +44,8 @@ test('app', async () => {
   (fetch as any).mockResponseOnce(JSON.stringify({ name: 'John Doe' }));
   const r = render(<App />);
   expect(r.getByText('Page 1')).toBeInTheDocument();
-  await sleep(800);
-  expect(fetch).toHaveBeenCalledTimes(2);
-  expect(r.getByText('27')).toBeInTheDocument();
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+  expect(r.getByText('27 tickets in total, displaying tickets 1 to 25.')).toBeInTheDocument();
   expect(r.getByText('subject 1')).toBeInTheDocument();
   r.getByText('Next').click();
   expect(r.getByText('Page 2')).toBeInTheDocument();
@@ -67,7 +62,7 @@ test('ticket click', async () => {
   );
   (fetch as any).mockResponseOnce(JSON.stringify({ name: 'John Doe' }));
   const r = render(<App />);
-  await sleep(400);
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
   r.getByText('subject 1').click();
   expect(r.getByText('description 1')).toBeInTheDocument();
 });
@@ -75,6 +70,6 @@ test('ticket click', async () => {
 test('get tickets failed', async () => {
   (fetch as any).mockResponseOnce('{}', { status: 500 });
   const r = render(<App />);
-  await sleep(500);
-  expect(r.getByText('getting tickets failed:')).toBeInTheDocument();
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+  expect(r.getByText('Error: getting tickets failed: unknown error')).toBeInTheDocument();
 });
